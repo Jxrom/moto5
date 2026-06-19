@@ -10,6 +10,9 @@ import UpdateOdometerModal from "./components/UpdateOdometerModal";
 import LogMaintenanceModal, {
   MaintenanceLog,
 } from "./components/LogMaintenanceModal";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import ScheduleMaintenanceModal from "./components/ScheduleMaintenanceModal";
+import ScheduleListModal from "./components/ScheduleListModal";
 
 const ListOfRecentActivities: Activity[] = [
   { id: "1", label: "Oil Change", date: "May 12" },
@@ -25,8 +28,16 @@ export default function Index() {
 
   const [logModalVisible, setLogModalVisible] = useState(false);
 
+  const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
+
+  const [recentActivities, setRecentActivities] = useState<Activity[]>(
+    ListOfRecentActivities,
+  );
+
+  const [scheduleListVisible, setScheduleListVisible] = useState(false);
+
   return (
-    <View
+    <SafeAreaProvider
       style={{
         flex: 1,
         justifyContent: "flex-start",
@@ -42,11 +53,12 @@ export default function Index() {
         statusTitle="Oil Change"
         kmLeft="1,200 km remaining"
         scheduleStatus="On Time"
+        openModal={() => setScheduleListVisible(true)}
       />
 
       <RecentActivities
         title="Recent Activities"
-        activities={ListOfRecentActivities}
+        activities={recentActivities}
       />
 
       <Fab onPress={() => setMenuVisible(true)} />
@@ -73,6 +85,13 @@ export default function Index() {
             icon: "speedometer-outline",
             onPress: () => setOdometerModalVisible(true),
           },
+
+          {
+            id: "4",
+            label: "Schedule Maintenance",
+            icon: "build-outline",
+            onPress: () => setScheduleModalVisible(true),
+          },
         ]}
       />
 
@@ -88,8 +107,22 @@ export default function Index() {
         onClose={() => setLogModalVisible(false)}
         onSubmit={(log: MaintenanceLog) => {
           console.log("New maintenance log: ", log);
+          const newActivity: Activity = {
+            id: Date.now().toString(),
+            label: log.type,
+            date: new Date().toLocaleDateString(),
+          };
+          setRecentActivities((prev) => [newActivity, ...prev]);
         }}
       />
-    </View>
+
+      <ScheduleMaintenanceModal
+        visible={scheduleModalVisible}
+        onClose={() => setScheduleModalVisible(false)}
+        onSubmit={() => {}}
+      />
+
+      <ScheduleListModal visible={scheduleListVisible} onClose={() => {}} />
+    </SafeAreaProvider>
   );
 }

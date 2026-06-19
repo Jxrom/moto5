@@ -1,21 +1,33 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 type Props = {
   statusTitle: string;
   kmLeft: string;
   scheduleStatus?: string;
+  openModal: () => void;
 };
 
 export default function MaintenanceCard({
   statusTitle,
   kmLeft,
   scheduleStatus,
+  openModal,
 }: Props) {
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{statusTitle}</Text>
       <Text style={styles.description}>{kmLeft}</Text>
-      <Text style={styles.scheduleStatus}>{scheduleStatus}</Text>
+      {/* <Text style={styles.scheduleStatus}>{scheduleStatus}</Text> */}
+
+      <Pressable style={styles.viewScheduleBtn} onPress={openModal}>
+        <Text style={{ color: "#fff" }}>View Scheduled Maintenance</Text>
+        <Ionicons
+          name="arrow-forward-circle-outline"
+          size={24}
+          color="#B8001F"
+        />
+      </Pressable>
     </View>
   );
 }
@@ -45,5 +57,10 @@ const styles = StyleSheet.create({
   scheduleStatus: {
     fontSize: 15,
     color: "#666",
+  },
+  viewScheduleBtn: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
 });
