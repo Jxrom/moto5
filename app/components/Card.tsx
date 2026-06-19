@@ -14,7 +14,7 @@ export default function Card({ title, description }: Props) {
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
         </View>
-        <MaterialCommunityIcons name="motorbike" size={80} color="#fff" />
+        <MaterialCommunityIcons name="motorbike" size={80} color="#B8001F" />
       </View>
     </View>
   );
