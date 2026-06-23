@@ -5,14 +5,17 @@ import MaintenanceCard from "./components/MaintenanceCard";
 import RecentActivities, { Activity } from "./components/RecentActivities";
 import Fab from "./components/Fab";
 import FabMenu from "./components/FabMenu";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import UpdateOdometerModal from "./components/UpdateOdometerModal";
 import LogMaintenanceModal, {
   MaintenanceLog,
 } from "./components/LogMaintenanceModal";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import ScheduleMaintenanceModal from "./components/ScheduleMaintenanceModal";
+import ScheduleMaintenanceModal, {
+  MaintenanceSchedule,
+} from "./components/ScheduleMaintenanceModal";
 import ScheduleListModal from "./components/ScheduleListModal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ListOfRecentActivities: Activity[] = [
   { id: "1", label: "Oil Change", date: "May 12" },
@@ -35,6 +38,25 @@ export default function Index() {
   );
 
   const [scheduleListVisible, setScheduleListVisible] = useState(false);
+  const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
+
+  // Load the items inside the storage and passed them on schedule state
+  useEffect(() => {
+    const loadSchedules = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("maintenance_schedules");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          console.log("Loaded schedules:", parsed);
+          setSchedules(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.error("Failed to load schedules", e);
+      }
+    };
+
+    loadSchedules();
+  }, []);
 
   return (
     <SafeAreaProvider
@@ -119,10 +141,30 @@ export default function Index() {
       <ScheduleMaintenanceModal
         visible={scheduleModalVisible}
         onClose={() => setScheduleModalVisible(false)}
-        onSubmit={() => {}}
+        onSubmit={async (schedule) => {
+          const updated = [...schedules, schedule];
+          setSchedules(updated);
+
+          try {
+            await AsyncStorage.setItem(
+              "maintenance_schedules",
+              JSON.stringify(updated),
+            );
+          } catch (e) {
+            console.error("Failed to save schedule", e);
+          }
+
+          setScheduleModalVisible(false);
+        }}
       />
 
-      <ScheduleListModal visible={scheduleListVisible} onClose={() => {}} />
+      <ScheduleListModal
+        visible={scheduleListVisible}
+        onClose={() => {
+          setScheduleListVisible(false);
+        }}
+        schedules={schedules}
+      />
     </SafeAreaProvider>
   );
 }
