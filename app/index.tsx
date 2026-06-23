@@ -17,6 +17,7 @@ import ScheduleMaintenanceModal, {
 import ScheduleListModal from "./components/ScheduleListModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { DEFAULT_SCHEDULES } from "../constants/defaultSchedules";
+import Toast from "./components/Toast";
 
 const ListOfRecentActivities: Activity[] = [
   { id: "1", label: "Oil Change", date: "May 12" },
@@ -26,6 +27,11 @@ const ListOfRecentActivities: Activity[] = [
 
 export default function Index() {
   const [menuVisible, setMenuVisible] = useState(false);
+
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
   const [odoMeter, setOdometer] = useState<number>(0);
   const [odometerModalVisible, setOdometerModalVisible] = useState(false);
@@ -45,6 +51,14 @@ export default function Index() {
     index: number;
   } | null>(null);
 
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "info" = "success",
+  ) => {
+    setToast(null); // reset first so re-triggering works
+    setTimeout(() => setToast({ message, type }), 50);
+  };
+
   const markScheduleDone = async (index: number) => {
     const updatedList = schedules.map((s, i) =>
       i === index ? { ...s, lastDoneKm: odoMeter } : s,
@@ -55,7 +69,10 @@ export default function Index() {
         "maintenance_schedules",
         JSON.stringify(updatedList),
       );
+
+      showToast("Marked as done!", "success");
     } catch (e) {
+      showToast("Something went wrong", "error");
       console.error("Failed to mark schedule as done", e);
     }
   };
@@ -76,7 +93,9 @@ export default function Index() {
         "maintenance_schedules",
         JSON.stringify(updatedList),
       );
+      showToast("Schedule updated", "info");
     } catch (e) {
+      showToast("Something went wrong", "error");
       console.error("Failed to update schedule", e);
     }
   };
@@ -89,7 +108,10 @@ export default function Index() {
         "maintenance_schedules",
         JSON.stringify(updated),
       );
+
+      showToast("Schedule deleted", "error");
     } catch (e) {
+      showToast("Something went wrong", "error");
       console.error("Failed to delete schedule", e);
     }
   };
@@ -106,6 +128,8 @@ export default function Index() {
 
     try {
       await AsyncStorage.setItem("odometer", newKm.toString());
+
+      showToast("Odometer updated", "info");
     } catch (e) {
       console.error("Failed to save odometer", e);
     }
@@ -294,6 +318,10 @@ export default function Index() {
         currentOdo={odoMeter}
         onMarkDone={markScheduleDone}
       />
+
+      {toast && (
+        <Toast visible={!!toast} message={toast.message} type={toast.type} />
+      )}
     </SafeAreaProvider>
   );
 }
