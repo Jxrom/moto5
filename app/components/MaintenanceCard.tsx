@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginVertical: 8,
     marginHorizontal: 16,
-    marginTop: 20,
+    marginTop: 10,
     elevation: 3,
     overflow: "hidden",
     backgroundColor: "#000",

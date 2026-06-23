@@ -18,7 +18,7 @@ export default function Fab({ onPress, icon = "add" }: Props) {
 const styles = StyleSheet.create({
   fab: {
     position: "absolute",
-    bottom: 50,
+    bottom: 10,
     right: 24,
     width: 56,
     height: 56,
@@ -31,5 +31,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    borderColor: "#c93f56",
   },
 });

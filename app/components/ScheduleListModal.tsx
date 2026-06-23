@@ -11,6 +11,7 @@ import {
   FlatList,
 } from "react-native";
 import { MaintenanceSchedule } from "./ScheduleMaintenanceModal";
+import Toast from "./Toast";
 
 type Props = {
   visible: boolean;
@@ -32,6 +33,19 @@ export default function ScheduleListModal({
   onMarkDone,
 }: Props) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
+
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "info" = "success",
+  ) => {
+    setToast(null);
+    setTimeout(() => setToast({ message, type }), 50);
+  };
 
   const handleTap = (index: number) => {
     setExpandedIndex((prev) => (prev === index ? null : index));
@@ -70,6 +84,7 @@ export default function ScheduleListModal({
                           onPress={() => {
                             setExpandedIndex(null);
                             onEdit(item, index);
+                            showToast("Editing schedule", "info");
                           }}
                         >
                           <Ionicons
@@ -82,6 +97,7 @@ export default function ScheduleListModal({
                           onPress={() => {
                             setExpandedIndex(null);
                             onDelete(index);
+                            showToast("Schedule deleted", "error");
                           }}
                         >
                           <Ionicons
@@ -95,6 +111,7 @@ export default function ScheduleListModal({
                           onPress={() => {
                             setExpandedIndex(null);
                             onMarkDone(index);
+                            showToast("Marked as done!", "success");
                           }}
                         >
                           <Ionicons
@@ -110,10 +127,10 @@ export default function ScheduleListModal({
                   </View>
 
                   <Text style={styles.cardDetail}>
-                    Every {item.intervalKm} km
+                    Every {item.intervalKm.toLocaleString()} km
                   </Text>
                   <Text style={styles.cardDetail}>
-                    Last done at {item.lastDoneKm} km
+                    Last done at {item.lastDoneKm.toLocaleString()} km
                   </Text>
                   <Text
                     style={[
@@ -122,8 +139,8 @@ export default function ScheduleListModal({
                     ]}
                   >
                     {kmRemaining <= 0
-                      ? `${Math.abs(kmRemaining)} km overdue`
-                      : `${kmRemaining} km remaining`}
+                      ? `${Math.abs(kmRemaining).toLocaleString()} km overdue`
+                      : `${kmRemaining.toLocaleString()} km remaining`}
                   </Text>
 
                   {item.notes ? (
@@ -137,6 +154,10 @@ export default function ScheduleListModal({
             <Text style={styles.empty}>No schedules yet.</Text>
           }
         />
+
+        {toast && (
+          <Toast visible={!!toast} message={toast.message} type={toast.type} />
+        )}
       </View>
     </Modal>
   );

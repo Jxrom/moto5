@@ -1,23 +1,25 @@
 import { Text, View } from "react-native";
-import Header from "./components/Header";
-import Card from "./components/Card";
-import MaintenanceCard from "./components/MaintenanceCard";
-import RecentActivities, { Activity } from "./components/RecentActivities";
-import Fab from "./components/Fab";
-import FabMenu from "./components/FabMenu";
+import Header from "../components/Header";
+import Card from "../components/Card";
+import MaintenanceCard from "../components/MaintenanceCard";
+import RecentActivities, { Activity } from "../components/RecentActivities";
+import Fab from "../components/Fab";
+import FabMenu from "../components/FabMenu";
 import { useState, useEffect } from "react";
-import UpdateOdometerModal from "./components/UpdateOdometerModal";
+import UpdateOdometerModal from "../components/UpdateOdometerModal";
 import LogMaintenanceModal, {
   MaintenanceLog,
-} from "./components/LogMaintenanceModal";
+} from "../components/LogMaintenanceModal";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import ScheduleMaintenanceModal, {
   MaintenanceSchedule,
-} from "./components/ScheduleMaintenanceModal";
-import ScheduleListModal from "./components/ScheduleListModal";
+} from "../components/ScheduleMaintenanceModal";
+import ScheduleListModal from "../components/ScheduleListModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { DEFAULT_SCHEDULES } from "../constants/defaultSchedules";
-import Toast from "./components/Toast";
+import { DEFAULT_SCHEDULES } from "../../constants/defaultSchedules";
+import Toast from "../components/Toast";
+import { useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 
 const ListOfRecentActivities: Activity[] = [
   { id: "1", label: "Oil Change", date: "May 12" },
@@ -134,53 +136,56 @@ export default function Index() {
       console.error("Failed to save odometer", e);
     }
   };
-  // Load the items inside the storage and passed them on schedule state
-  useEffect(() => {
-    const loadSchedules = async () => {
-      try {
-        const stored = await AsyncStorage.getItem("maintenance_schedules");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          console.log("Loaded schedules:", parsed);
-          setSchedules(JSON.parse(stored));
-        } else {
-          await AsyncStorage.setItem(
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        try {
+          // Load odometer
+          const storedOdo = await AsyncStorage.getItem("odometer");
+          if (storedOdo !== null) {
+            setOdometer(parseInt(storedOdo, 10));
+          } else {
+            setOdometer(2500);
+          }
+
+          // Load schedules
+          const storedSchedules = await AsyncStorage.getItem(
             "maintenance_schedules",
-            JSON.stringify(DEFAULT_SCHEDULES),
           );
-          setSchedules(DEFAULT_SCHEDULES);
+          if (storedSchedules) {
+            const parsed = JSON.parse(storedSchedules);
+            if (parsed.length === 0) {
+              await AsyncStorage.setItem(
+                "maintenance_schedules",
+                JSON.stringify(DEFAULT_SCHEDULES),
+              );
+              setSchedules(DEFAULT_SCHEDULES);
+            } else {
+              setSchedules(parsed);
+            }
+          } else {
+            await AsyncStorage.setItem(
+              "maintenance_schedules",
+              JSON.stringify(DEFAULT_SCHEDULES),
+            );
+            setSchedules(DEFAULT_SCHEDULES);
+          }
+        } catch (e) {
+          console.error("Failed to load data", e);
         }
-      } catch (e) {
-        console.error("Failed to load schedules", e);
-      }
-    };
+      };
 
-    loadSchedules();
-  }, []);
-
-  useEffect(() => {
-    const loadOdometer = async () => {
-      try {
-        const stored = await AsyncStorage.getItem("odometer");
-        if (stored !== null) {
-          setOdometer(parseInt(stored, 10));
-        } else {
-          setOdometer(2500);
-        }
-      } catch (e) {
-        console.error("Failed to load odometer", e);
-      }
-    };
-
-    loadOdometer();
-  }, []);
-
+      loadData();
+    }, []),
+  );
   return (
     <SafeAreaProvider
       style={{
         flex: 1,
         justifyContent: "flex-start",
         padding: 6,
+        paddingTop: 40,
         backgroundColor: "#FFFFFF",
       }}
     >
@@ -224,24 +229,18 @@ export default function Index() {
         options={[
           {
             id: "1",
-            label: "Log Maintenance",
-            icon: "build-outline",
-            onPress: () => setLogModalVisible(true),
-          },
-          {
-            id: "2",
             label: "Add Fuel",
             icon: "list-outline",
             onPress: () => console.log("Add Activity"),
           },
           {
-            id: "3",
+            id: "2",
             label: "Update odometer",
             icon: "speedometer-outline",
             onPress: () => setOdometerModalVisible(true),
           },
           {
-            id: "4",
+            id: "3",
             label: "Schedule Maintenance",
             icon: "build-outline",
             onPress: () => setScheduleModalVisible(true),
@@ -260,7 +259,6 @@ export default function Index() {
         visible={logModalVisible}
         onClose={() => setLogModalVisible(false)}
         onSubmit={(log: MaintenanceLog) => {
-          console.log("New maintenance log: ", log);
           const newActivity: Activity = {
             id: Date.now().toString(),
             label: log.type,
