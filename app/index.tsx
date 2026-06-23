@@ -16,6 +16,7 @@ import ScheduleMaintenanceModal, {
 } from "./components/ScheduleMaintenanceModal";
 import ScheduleListModal from "./components/ScheduleListModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DEFAULT_SCHEDULES } from "../constants/defaultSchedules";
 
 const ListOfRecentActivities: Activity[] = [
   { id: "1", label: "Oil Change", date: "May 12" },
@@ -118,6 +119,12 @@ export default function Index() {
           const parsed = JSON.parse(stored);
           console.log("Loaded schedules:", parsed);
           setSchedules(JSON.parse(stored));
+        } else {
+          await AsyncStorage.setItem(
+            "maintenance_schedules",
+            JSON.stringify(DEFAULT_SCHEDULES),
+          );
+          setSchedules(DEFAULT_SCHEDULES);
         }
       } catch (e) {
         console.error("Failed to load schedules", e);

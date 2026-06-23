@@ -31,6 +31,12 @@ export default function ScheduleListModal({
   currentOdo,
   onMarkDone,
 }: Props) {
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+
+  const handleTap = (index: number) => {
+    setExpandedIndex((prev) => (prev === index ? null : index));
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
@@ -43,60 +49,88 @@ export default function ScheduleListModal({
         </View>
 
         <FlatList
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
           data={schedules}
           keyExtractor={(_, index) => index.toString()}
           renderItem={({ item, index }) => {
             const kmRemaining = item.lastDoneKm + item.intervalKm - currentOdo;
+            const isExpanded = expandedIndex === index; // 👈 add this
+
             return (
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>{item.type}</Text>
-                  <View style={styles.cardActions}>
-                    <Pressable onPress={() => onEdit(item, index)}>
-                      <Ionicons name="pencil-outline" size={20} color="#555" />
-                    </Pressable>
-                    <Pressable onPress={() => onDelete(index)}>
-                      <Ionicons
-                        name="trash-outline"
-                        size={20}
-                        color="#B8001F"
-                      />
-                    </Pressable>
+              <Pressable onPress={() => handleTap(index)}>
+                <View style={[styles.card, isExpanded && styles.cardExpanded]}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>{item.type}</Text>
+
+                    {/* 👇 only show actions when expanded */}
+                    {isExpanded ? (
+                      <View style={styles.cardActions}>
+                        <Pressable
+                          onPress={() => {
+                            setExpandedIndex(null);
+                            onEdit(item, index);
+                          }}
+                        >
+                          <Ionicons
+                            name="pencil-outline"
+                            size={20}
+                            color="#555"
+                          />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            setExpandedIndex(null);
+                            onDelete(index);
+                          }}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={20}
+                            color="#B8001F"
+                          />
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => {
+                            setExpandedIndex(null);
+                            onMarkDone(index);
+                          }}
+                        >
+                          <Ionicons
+                            name="checkmark-circle-outline"
+                            size={24}
+                            color="#008000"
+                          />
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <Ionicons name="chevron-forward" size={16} color="#aaa" />
+                    )}
                   </View>
+
+                  <Text style={styles.cardDetail}>
+                    Every {item.intervalKm} km
+                  </Text>
+                  <Text style={styles.cardDetail}>
+                    Last done at {item.lastDoneKm} km
+                  </Text>
+                  <Text
+                    style={[
+                      styles.kmRemaining,
+                      { color: kmRemaining <= 0 ? "#B8001F" : "#16a34a" },
+                    ]}
+                  >
+                    {kmRemaining <= 0
+                      ? `${Math.abs(kmRemaining)} km overdue`
+                      : `${kmRemaining} km remaining`}
+                  </Text>
+
+                  {item.notes ? (
+                    <Text style={styles.cardNotes}>{item.notes}</Text>
+                  ) : null}
                 </View>
-                <Text style={styles.cardDetail}>
-                  Every {item.intervalKm} km
-                </Text>
-                <Text style={styles.cardDetail}>
-                  Last done at {item.lastDoneKm} km
-                </Text>
-                <Text
-                  style={[
-                    styles.kmRemaining,
-                    { color: kmRemaining <= 0 ? "#B8001F" : "#16a34a" },
-                  ]}
-                >
-                  {kmRemaining <= 0
-                    ? `${Math.abs(kmRemaining)} km overdue`
-                    : `${kmRemaining} km remaining`}
-                </Text>
-
-                {item.notes ? (
-                  <Text style={styles.cardNotes}>{item.notes}</Text>
-                ) : null}
-
-                <Pressable
-                  onPress={() => onMarkDone(index)}
-                  style={styles.markDoneBtn}
-                >
-                  <Ionicons
-                    name="checkmark-circle-outline"
-                    size={16}
-                    color="#fff"
-                  />
-                  <Text style={styles.markDoneText}>Mark as Done</Text>
-                </Pressable>
-              </View>
+              </Pressable>
             );
           }}
           ListEmptyComponent={
@@ -179,5 +213,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 13,
     fontWeight: "600",
+  },
+  cardExpanded: {
+    borderWidth: 1,
+    borderColor: "#B8001F", // matches your app's accent color
   },
 });
