@@ -1,17 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRef } from "react";
 import { useState } from "react";
 import {
   Modal,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Pressable,
   FlatList,
+  Animated,
 } from "react-native";
 import { MaintenanceSchedule } from "./ScheduleMaintenanceModal";
 import Toast from "./Toast";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+import Swipeable from "react-native-gesture-handler/Swipeable";
 
 type Props = {
   visible: boolean;
@@ -32,7 +36,7 @@ export default function ScheduleListModal({
   currentOdo,
   onMarkDone,
 }: Props) {
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const swipeableRefs = useRef<(Swipeable | null)[]>([]);
 
   const [toast, setToast] = useState<{
     message: string;
@@ -47,118 +51,149 @@ export default function ScheduleListModal({
     setTimeout(() => setToast({ message, type }), 50);
   };
 
-  const handleTap = (index: number) => {
-    setExpandedIndex((prev) => (prev === index ? null : index));
+  const closeSwipeable = (index: number) => {
+    swipeableRefs.current[index]?.close();
+  };
+
+  const renderLeftActions = (
+    progress: Animated.AnimatedInterpolation<number>,
+    _drag: Animated.AnimatedInterpolation<number>,
+    index: number,
+    item: MaintenanceSchedule,
+  ) => {
+    const translateX = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [-160, 0],
+    });
+
+    return (
+      <Animated.View
+        style={[styles.actionsContainer, { transform: [{ translateX }] }]}
+      >
+        {/* Mark Done */}
+        <Pressable
+          style={[styles.actionBtn, styles.actionDone]}
+          onPress={() => {
+            closeSwipeable(index);
+            onMarkDone(index);
+            showToast("Marked as done!", "success");
+          }}
+        >
+          <Ionicons name="checkmark" size={20} color="#fff" />
+          <Text style={styles.actionLabel}>Done</Text>
+        </Pressable>
+
+        {/* Edit */}
+        <Pressable
+          style={[styles.actionBtn, styles.actionEdit]}
+          onPress={() => {
+            closeSwipeable(index);
+            onEdit(item, index);
+            showToast("Editing schedule", "info");
+          }}
+        >
+          <Ionicons name="pencil" size={18} color="#fff" />
+          <Text style={styles.actionLabel}>Edit</Text>
+        </Pressable>
+
+        {/* Delete */}
+        <Pressable
+          style={[styles.actionBtn, styles.actionDelete]}
+          onPress={() => {
+            closeSwipeable(index);
+            onDelete(index);
+            showToast("Schedule deleted", "error");
+          }}
+        >
+          <Ionicons name="trash" size={18} color="#fff" />
+          <Text style={styles.actionLabel}>Delete</Text>
+        </Pressable>
+      </Animated.View>
+    );
   };
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.label}>Scheduled Maintenance</Text>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.label}>Scheduled Maintenance</Text>
+            <Pressable onPress={onClose}>
+              <Ionicons name="close-circle-outline" size={30} color="#B8001F" />
+            </Pressable>
+          </View>
 
-          <Pressable onPress={onClose}>
-            <Ionicons name="close-circle-outline" size={30} color="#B8001F" />
-          </Pressable>
-        </View>
+          <Text style={styles.hint}>Swipe right on a card to take action</Text>
 
-        <FlatList
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={false}
-          data={schedules}
-          keyExtractor={(_, index) => index.toString()}
-          renderItem={({ item, index }) => {
-            const kmRemaining = item.lastDoneKm + item.intervalKm - currentOdo;
-            const isExpanded = expandedIndex === index; // 👈 add this
+          <FlatList
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            data={schedules}
+            keyExtractor={(_, index) => index.toString()}
+            renderItem={({ item, index }) => {
+              const kmRemaining =
+                item.lastDoneKm + item.intervalKm - currentOdo;
 
-            return (
-              <Pressable onPress={() => handleTap(index)}>
-                <View style={[styles.card, isExpanded && styles.cardExpanded]}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{item.type}</Text>
+              return (
+                <Swipeable
+                  ref={(ref) => {
+                    swipeableRefs.current[index] = ref;
+                  }}
+                  renderLeftActions={(progress, drag) =>
+                    renderLeftActions(progress, drag, index, item)
+                  }
+                  leftThreshold={40}
+                  friction={2}
+                  overshootLeft={false}
+                >
+                  <View style={styles.card}>
+                    <View style={styles.cardHeader}>
+                      <Text style={styles.cardTitle}>{item.type}</Text>
+                      <Ionicons
+                        name="reorder-two-outline"
+                        size={18}
+                        color="#ccc"
+                      />
+                    </View>
 
-                    {/* 👇 only show actions when expanded */}
-                    {isExpanded ? (
-                      <View style={styles.cardActions}>
-                        <Pressable
-                          onPress={() => {
-                            setExpandedIndex(null);
-                            onEdit(item, index);
-                            showToast("Editing schedule", "info");
-                          }}
-                        >
-                          <Ionicons
-                            name="pencil-outline"
-                            size={20}
-                            color="#555"
-                          />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => {
-                            setExpandedIndex(null);
-                            onDelete(index);
-                            showToast("Schedule deleted", "error");
-                          }}
-                        >
-                          <Ionicons
-                            name="trash-outline"
-                            size={20}
-                            color="#B8001F"
-                          />
-                        </Pressable>
+                    <Text style={styles.cardDetail}>
+                      Every {item.intervalKm.toLocaleString()} km
+                    </Text>
+                    <Text style={styles.cardDetail}>
+                      Last done at {item.lastDoneKm.toLocaleString()} km
+                    </Text>
+                    <Text
+                      style={[
+                        styles.kmRemaining,
+                        { color: kmRemaining <= 0 ? "#B8001F" : "#16a34a" },
+                      ]}
+                    >
+                      {kmRemaining <= 0
+                        ? `${Math.abs(kmRemaining).toLocaleString()} km overdue`
+                        : `${kmRemaining.toLocaleString()} km remaining`}
+                    </Text>
 
-                        <Pressable
-                          onPress={() => {
-                            setExpandedIndex(null);
-                            onMarkDone(index);
-                            showToast("Marked as done!", "success");
-                          }}
-                        >
-                          <Ionicons
-                            name="checkmark-circle-outline"
-                            size={24}
-                            color="#008000"
-                          />
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <Ionicons name="chevron-forward" size={16} color="#aaa" />
-                    )}
+                    {item.notes ? (
+                      <Text style={styles.cardNotes}>{item.notes}</Text>
+                    ) : null}
                   </View>
+                </Swipeable>
+              );
+            }}
+            ListEmptyComponent={
+              <Text style={styles.empty}>No schedules yet.</Text>
+            }
+          />
 
-                  <Text style={styles.cardDetail}>
-                    Every {item.intervalKm.toLocaleString()} km
-                  </Text>
-                  <Text style={styles.cardDetail}>
-                    Last done at {item.lastDoneKm.toLocaleString()} km
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kmRemaining,
-                      { color: kmRemaining <= 0 ? "#B8001F" : "#16a34a" },
-                    ]}
-                  >
-                    {kmRemaining <= 0
-                      ? `${Math.abs(kmRemaining).toLocaleString()} km overdue`
-                      : `${kmRemaining.toLocaleString()} km remaining`}
-                  </Text>
-
-                  {item.notes ? (
-                    <Text style={styles.cardNotes}>{item.notes}</Text>
-                  ) : null}
-                </View>
-              </Pressable>
-            );
-          }}
-          ListEmptyComponent={
-            <Text style={styles.empty}>No schedules yet.</Text>
-          }
-        />
-
-        {toast && (
-          <Toast visible={!!toast} message={toast.message} type={toast.type} />
-        )}
-      </View>
+          {toast && (
+            <Toast
+              visible={!!toast}
+              message={toast.message}
+              type={toast.type}
+            />
+          )}
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -178,11 +213,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 8,
+  },
+  hint: {
+    fontSize: 12,
+    color: "#aaa",
+    marginBottom: 16,
   },
   card: {
     backgroundColor: "#f5f5f5",
-    borderRadius: 10,
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
     padding: 14,
     marginBottom: 10,
     gap: 4,
@@ -210,33 +251,41 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-  },
-  cardActions: {
-    flexDirection: "row",
-    gap: 12,
+    marginBottom: 2,
   },
   kmRemaining: {
     fontSize: 13,
     fontWeight: "600",
   },
-  markDoneBtn: {
+  // Swipe actions
+  actionsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "#16a34a",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-    marginTop: 4,
+    marginBottom: 10,
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+    overflow: "hidden",
   },
-  markDoneText: {
+  actionBtn: {
+    width: 64,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 10,
+    height: "100%",
+  },
+  actionLabel: {
     color: "#fff",
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "600",
   },
-  cardExpanded: {
-    borderWidth: 1,
-    borderColor: "#B8001F", // matches your app's accent color
+  actionDone: {
+    backgroundColor: "#16a34a",
+  },
+  actionEdit: {
+    backgroundColor: "#555",
+  },
+  actionDelete: {
+    backgroundColor: "#B8001F",
   },
 });
