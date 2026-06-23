@@ -1,12 +1,20 @@
-import { View, Text, StyleSheet, ImageBackground } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ImageBackground,
+  Pressable,
+} from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 type Props = {
   title: string;
   description: string;
+  openModal: () => void;
 };
 
-export default function Card({ title, description }: Props) {
+export default function Card({ title, description, openModal }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.row}>
@@ -16,6 +24,12 @@ export default function Card({ title, description }: Props) {
         </View>
         <MaterialCommunityIcons name="motorbike" size={80} color="#B8001F" />
       </View>
+
+      <Pressable style={styles.buttonContainer} onPress={openModal}>
+        <Text style={styles.updateLabel}>Update Odo</Text>
+
+        <Ionicons name="pencil-outline" size={18} color="#B8001F" />
+      </Pressable>
     </View>
   );
 }
@@ -48,5 +62,14 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 18,
     color: "#666",
+  },
+  updateLabel: {
+    color: "#fff",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
   },
 });

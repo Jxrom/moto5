@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -11,7 +11,8 @@ import {
 
 export type MaintenanceSchedule = {
   type: string;
-  intervalKm: string;
+  lastDoneKm: number;
+  intervalKm: number;
   notes: string;
 };
 
@@ -19,28 +20,52 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onSubmit: (log: MaintenanceSchedule) => void;
+  initialValues?: MaintenanceSchedule;
 };
 
 export default function ScheduleMaintenanceModal({
   visible,
   onClose,
   onSubmit,
+  initialValues,
 }: Props) {
   const [type, setType] = useState("");
   const [intervalKm, setIntervalKm] = useState("");
+  const [lastDoneKm, setLastDoneKm] = useState("");
   const [notes, setNotes] = useState("");
 
   const handleSubmit = () => {
-    if (!type.trim()) return; // basic guard, refine later
+    if (!type.trim() || !intervalKm || !lastDoneKm) return;
 
-    onSubmit({ type, intervalKm, notes });
+    onSubmit({
+      type,
+      lastDoneKm: parseInt(lastDoneKm, 10),
+      intervalKm: parseInt(intervalKm, 10),
+      notes,
+    });
 
     // reset form for next time
     setType("");
+
+    setLastDoneKm("");
     setIntervalKm("");
     setNotes("");
     onClose();
   };
+
+  useEffect(() => {
+    if (initialValues) {
+      setType(initialValues.type);
+      setLastDoneKm(initialValues.lastDoneKm.toString());
+      setIntervalKm(initialValues.intervalKm.toString());
+      setNotes(initialValues.notes);
+    } else {
+      setType("");
+      setLastDoneKm("");
+      setIntervalKm("");
+      setNotes("");
+    }
+  }, [initialValues]);
 
   return (
     <Modal
@@ -51,8 +76,9 @@ export default function ScheduleMaintenanceModal({
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
-          <Text style={styles.label}>Schedule Maintenance</Text>
-
+          <Text style={styles.label}>
+            {initialValues ? "Edit Maintenance" : "Schedule Maintenance"}
+          </Text>
           <TextInput
             style={styles.input}
             value={type}
@@ -62,10 +88,18 @@ export default function ScheduleMaintenanceModal({
 
           <TextInput
             style={styles.input}
+            value={lastDoneKm}
+            onChangeText={setLastDoneKm}
+            keyboardType="numeric"
+            placeholder="Last done at (km) — e.g. 1500"
+          />
+
+          <TextInput
+            style={styles.input}
             value={intervalKm}
             onChangeText={setIntervalKm}
             keyboardType="numeric"
-            placeholder="Odometer (km)"
+            placeholder="Every (km) — e.g. 3000"
           />
 
           <TextInput

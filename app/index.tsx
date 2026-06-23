@@ -26,7 +26,7 @@ const ListOfRecentActivities: Activity[] = [
 export default function Index() {
   const [menuVisible, setMenuVisible] = useState(false);
 
-  const [odoMeter, setOdometer] = useState(2500);
+  const [odoMeter, setOdometer] = useState<number>(0);
   const [odometerModalVisible, setOdometerModalVisible] = useState(false);
 
   const [logModalVisible, setLogModalVisible] = useState(false);
@@ -39,7 +39,76 @@ export default function Index() {
 
   const [scheduleListVisible, setScheduleListVisible] = useState(false);
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
+  const [editingSchedule, setEditingSchedule] = useState<{
+    schedule: MaintenanceSchedule;
+    index: number;
+  } | null>(null);
 
+  const markScheduleDone = async (index: number) => {
+    const updatedList = schedules.map((s, i) =>
+      i === index ? { ...s, lastDoneKm: odoMeter } : s,
+    );
+    setSchedules(updatedList);
+    try {
+      await AsyncStorage.setItem(
+        "maintenance_schedules",
+        JSON.stringify(updatedList),
+      );
+    } catch (e) {
+      console.error("Failed to mark schedule as done", e);
+    }
+  };
+
+  const updateSchedule = async (
+    updated: MaintenanceSchedule,
+    index: number,
+  ) => {
+    const normalized = {
+      ...updated,
+      lastDoneKm: Number(updated.lastDoneKm),
+      intervalKm: Number(updated.intervalKm),
+    };
+    const updatedList = schedules.map((s, i) => (i === index ? normalized : s));
+    setSchedules(updatedList);
+    try {
+      await AsyncStorage.setItem(
+        "maintenance_schedules",
+        JSON.stringify(updatedList),
+      );
+    } catch (e) {
+      console.error("Failed to update schedule", e);
+    }
+  };
+
+  const deleteSchedule = async (index: number) => {
+    const updated = schedules.filter((_, i) => i !== index);
+    setSchedules(updated);
+    try {
+      await AsyncStorage.setItem(
+        "maintenance_schedules",
+        JSON.stringify(updated),
+      );
+    } catch (e) {
+      console.error("Failed to delete schedule", e);
+    }
+  };
+
+  const nextSchedule = schedules
+    .map((s) => ({
+      ...s,
+      kmRemaining: s.lastDoneKm + s.intervalKm - odoMeter,
+    }))
+    .sort((a, b) => a.kmRemaining - b.kmRemaining)[0];
+
+  const updateOdometer = async (newKm: number) => {
+    setOdometer(newKm);
+
+    try {
+      await AsyncStorage.setItem("odometer", newKm.toString());
+    } catch (e) {
+      console.error("Failed to save odometer", e);
+    }
+  };
   // Load the items inside the storage and passed them on schedule state
   useEffect(() => {
     const loadSchedules = async () => {
@@ -58,6 +127,23 @@ export default function Index() {
     loadSchedules();
   }, []);
 
+  useEffect(() => {
+    const loadOdometer = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("odometer");
+        if (stored !== null) {
+          setOdometer(parseInt(stored, 10));
+        } else {
+          setOdometer(2500);
+        }
+      } catch (e) {
+        console.error("Failed to load odometer", e);
+      }
+    };
+
+    loadOdometer();
+  }, []);
+
   return (
     <SafeAreaProvider
       style={{
@@ -69,12 +155,28 @@ export default function Index() {
     >
       <Header title="Good Morning" />
 
-      <Card title="PCX 160" description={`${odoMeter} km`} />
+      <Card
+        title="PCX 160"
+        description={`${odoMeter} km`}
+        openModal={() => {
+          setOdometerModalVisible(true);
+        }}
+      />
 
       <MaintenanceCard
-        statusTitle="Oil Change"
-        kmLeft="1,200 km remaining"
-        scheduleStatus="On Time"
+        statusTitle={nextSchedule?.type ?? "No schedule yet"}
+        kmLeft={
+          nextSchedule
+            ? `${nextSchedule.kmRemaining.toLocaleString()} km remaining`
+            : "—"
+        }
+        scheduleStatus={
+          nextSchedule
+            ? nextSchedule.kmRemaining <= 0
+              ? "Overdue"
+              : "On Time"
+            : "—"
+        }
         openModal={() => setScheduleListVisible(true)}
       />
 
@@ -107,7 +209,6 @@ export default function Index() {
             icon: "speedometer-outline",
             onPress: () => setOdometerModalVisible(true),
           },
-
           {
             id: "4",
             label: "Schedule Maintenance",
@@ -121,7 +222,7 @@ export default function Index() {
         visible={odometerModalVisible}
         currentKm={odoMeter}
         onClose={() => setOdometerModalVisible(false)}
-        onSubmit={(newKm) => setOdometer(newKm)}
+        onSubmit={(newKm) => updateOdometer(newKm)}
       />
 
       <LogMaintenanceModal
@@ -140,18 +241,32 @@ export default function Index() {
 
       <ScheduleMaintenanceModal
         visible={scheduleModalVisible}
-        onClose={() => setScheduleModalVisible(false)}
+        onClose={() => {
+          setScheduleModalVisible(false);
+          setEditingSchedule(null); // reset editing state on close
+        }}
+        initialValues={editingSchedule?.schedule}
         onSubmit={async (schedule) => {
-          const updated = [...schedules, schedule];
-          setSchedules(updated);
+          const normalized = {
+            ...schedule,
+            lastDoneKm: Number(schedule.lastDoneKm),
+            intervalKm: Number(schedule.intervalKm),
+          };
 
-          try {
-            await AsyncStorage.setItem(
-              "maintenance_schedules",
-              JSON.stringify(updated),
-            );
-          } catch (e) {
-            console.error("Failed to save schedule", e);
+          if (editingSchedule !== null) {
+            await updateSchedule(normalized, editingSchedule.index);
+            setEditingSchedule(null);
+          } else {
+            const updated = [...schedules, normalized];
+            setSchedules(updated);
+            try {
+              await AsyncStorage.setItem(
+                "maintenance_schedules",
+                JSON.stringify(updated),
+              );
+            } catch (e) {
+              console.error("Failed to save schedule", e);
+            }
           }
 
           setScheduleModalVisible(false);
@@ -164,6 +279,13 @@ export default function Index() {
           setScheduleListVisible(false);
         }}
         schedules={schedules}
+        onDelete={deleteSchedule}
+        onEdit={(schedule, index) => {
+          setEditingSchedule({ schedule, index });
+          setScheduleModalVisible(true);
+        }}
+        currentOdo={odoMeter}
+        onMarkDone={markScheduleDone}
       />
     </SafeAreaProvider>
   );
